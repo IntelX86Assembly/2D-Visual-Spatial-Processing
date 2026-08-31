@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spatial Transformation Grid</title>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #111722;
+    --panel-border: #242d3d;
+    --text: #edf2ff;
+    --muted: #8e9ab0;
+    --blue: #74d7ff;
+    --blue-glow: rgba(116, 215, 255, .35);
+    --red: #ff7f9f;
+    --red-glow: rgba(255, 127, 159, .35);
+    --green: #7dffb2;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 25% 50%, rgba(116,215,255,.06), transparent 30%),
+      radial-gradient(circle at 75% 50%, rgba(255,127,159,.06), transparent 30%),
+      var(--bg);
+    color: var(--text);
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow-x: hidden;
+  }
+
+  .app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    text-align: center;
+    padding: 24px 20px 12px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.4rem, 3vw, 2.1rem);
+    letter-spacing: .04em;
+  }
+
+  .subtitle {
+    margin-top: 7px;
+    color: var(--muted);
+    font-size: .9rem;
+  }
+
+  .game {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr minmax(150px, 230px) 1fr;
+    align-items: center;
+    gap: clamp(20px, 5vw, 70px);
+    width: min(1250px, 94vw);
+    margin: 0 auto;
+    padding: 20px 0 40px;
+  }
+
+  .side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .label {
+    margin-bottom: 15px;
+    color: var(--muted);
+    font-weight: 700;
+    font-size: .78rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  .grid {
+    width: min(32vw, 360px);
+    height: min(32vw, 360px);
+    min-width: 230px;
+    min-height: 230px;
+    max-width: 360px;
+    max-height: 360px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 10px;
+    padding: 10px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px;
+    box-shadow: 0 18px 55px rgba(0,0,0,.28);
+  }
+
+  .cell {
+    border: 1px solid #293346;
+    border-radius: 10px;
+    background: #0d121b;
+    position: relative;
+    cursor: pointer;
+    transition: transform .12s ease, border-color .12s ease, background .12s ease;
+  }
+
+  .cell:hover {
+    transform: scale(.97);
+    border-color: #56637a;
+  }
+
+  .cell.filled {
+    border-color: transparent;
+  }
+
+  .left-grid .cell.filled {
+    background: var(--blue);
+    box-shadow: 0 0 22px var(--blue-glow), inset 0 0 10px rgba(255,255,255,.2);
+  }
+
+  .right-grid .cell.filled {
+    background: var(--red);
+    box-shadow: 0 0 22px var(--red-glow), inset 0 0 10px rgba(255,255,255,.2);
+  }
+
+  .right-grid .cell {
+    cursor: pointer;
+  }
+
+  .operations {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 220px;
+  }
+
+  .operations-title {
+    color: var(--muted);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .operation {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: clamp(.88rem, 1.5vw, 1.05rem);
+    font-weight: 800;
+    color: #fff;
+    background: #161d2a;
+    border: 1px solid #303b4e;
+    padding: 8px 15px;
+    border-radius: 9px;
+    box-shadow: 0 5px 18px rgba(0,0,0,.2);
+  }
+
+  .arrow {
+    color: #59667b;
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .right-side {
+    position: relative;
+  }
+
+  .next-wrap {
+    width: min(32vw, 360px);
+    min-width: 230px;
+    max-width: 360px;
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+  }
+
+  #nextButton {
+    display: none;
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 24px;
+    background: var(--green);
+    color: #07130d;
+    font-size: .95rem;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 0 22px rgba(125,255,178,.22);
+  }
+
+  #nextButton:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+
+  #nextButton.show {
+    display: block;
+    animation: pop .2s ease-out;
+  }
+
+  .status {
+    height: 26px;
+    margin-top: 13px;
+    color: var(--muted);
+    text-align: center;
+    font-size: .86rem;
+  }
+
+  .status.correct {
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  .key-help {
+    text-align: center;
+    color: var(--muted);
+    font-size: .76rem;
+    margin-top: 8px;
+  }
+
+  kbd {
+    display: inline-block;
+    min-width: 22px;
+    padding: 2px 5px;
+    margin: 0 2px;
+    border: 1px solid #3a465a;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    color: #dce5f7;
+    background: #151c28;
+    font-family: inherit;
+    font-size: .72rem;
+  }
+
+  @keyframes pop {
+    from { opacity: 0; transform: scale(.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @media (max-width: 800px) {
+    .game {
+      grid-template-columns: 1fr;
+      gap: 26px;
+      padding-bottom: 30px;
+    }
+
+    .operations {
+      order: 2;
+      min-height: 0;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    .side:first-child { order: 1; }
+    .right-side { order: 3; }
+
+    .grid, .next-wrap {
+      width: min(78vw, 360px);
+      height: min(78vw, 360px);
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .next-wrap {
+      height: auto;
+    }
+
+    .arrow { display: none; }
+  }
+</style>
+</head>
+
+<body>
+<div class="app">
+  <header>
+    <h1>Spatial Transformation</h1>
+    <div class="subtitle">Transform the blue grid, then reproduce the result in red.</div>
+  </header>
+
+  <main class="game">
+    <section class="side">
+      <div class="label">Input</div>
+      <div id="leftGrid" class="grid left-grid" aria-label="Input grid"></div>
+      <div class="key-help">Click cells to inspect the pattern.</div>
+    </section>
+
+    <section class="operations" aria-label="Transformation sequence">
+      <div class="operations-title">Apply in order</div>
+      <div id="operationList"></div>
+    </section>
+
+    <section class="side right-side">
+      <div class="label">Result</div>
+      <div id="rightGrid" class="grid right-grid" aria-label="Answer grid"></div>
+      <div class="next-wrap">
+        <button id="nextButton">Next →</button>
+      </div>
+      <div id="status" class="status">Enter the transformed pattern.</div>
+      <div class="key-help">
+        Numpad: <kbd>7</kbd><kbd>8</kbd><kbd>9</kbd> top ·
+        <kbd>4</kbd><kbd>5</kbd><kbd>6</kbd> middle ·
+        <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> bottom
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/*
+  Grid representation:
+  [
+    [top-left,    top-middle,    top-right],
+    [middle-left, center,        middle-right],
+    [bottom-left, bottom-middle, bottom-right]
+  ]
+
+  false = empty
+  true  = filled
+*/
+
+const SIZE = 3;
+
+const TRANSFORMATIONS = [
+  "rotate(-270)",
+  "rotate(-180)",
+  "rotate(-90)",
+  "rotate(90)",
+  "rotate(180)",
+  "rotate(270)",
+  "mirror-x",
+  "mirror-y",
+  "mirror-xy",
+  "invert"
+];
+
+const leftGridEl = document.getElementById("leftGrid");
+const rightGridEl = document.getElementById("rightGrid");
+const operationListEl = document.getElementById("operationList");
+const nextButton = document.getElementById("nextButton");
+const statusEl = document.getElementById("status");
+
+let inputGrid = [];
+let playerGrid = [];
+let targetGrid = [];
+
+function emptyGrid() {
+  return Array.from({ length: SIZE }, () => Array(SIZE).fill(false));
+}
+
+function cloneGrid(grid) {
+  return grid.map(row => [...row]);
+}
+
+function randomGrid() {
+  const grid = emptyGrid();
+
+  // Each position has an independent 50% chance of being filled.
+  // Prevent a completely empty starting grid.
+  let filled = 0;
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      grid[r][c] = Math.random() < 0.5;
+      if (grid[r][c]) filled++;
+    }
+  }
+
+  if (filled === 0) {
+    grid[Math.floor(Math.random() * SIZE)][Math.floor(Math.random() * SIZE)] = true;
+  }
+
+  return grid;
+}
+
+function rotate90(grid) {
+  const result = emptyGrid();
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      result[c][SIZE - 1 - r] = grid[r][c];
+    }
+  }
+
+  return result;
+}
+
+function rotate(grid, degrees) {
+  // Normalize negative and large rotations.
+  let turns = ((degrees % 360) + 360) % 360 / 90;
+  let result = cloneGrid(grid);
+
+  for (let i = 0; i < turns; i++) {
+    result = rotate90(result);
+  }
+
+  return result;
+}
+
+function mirrorX(grid) {
+  // Reflection across the X-axis: top <-> bottom.
+  const result = emptyGrid();
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      result[SIZE - 1 - r][c] = grid[r][c];
+    }
+  }
+
+  return result;
+}
+
+function mirrorY(grid) {
+  // Reflection across the Y-axis: left <-> right.
+  const result = emptyGrid();
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      result[r][SIZE - 1 - c] = grid[r][c];
+    }
+  }
+
+  return result;
+}
+
+function mirrorXY(grid) {
+  // Reflection across both axes = 180-degree rotation.
+  return mirrorY(mirrorX(grid));
+}
+
+function invert(grid) {
+  return grid.map(row => row.map(cell => !cell));
+}
+
+function applyTransformation(grid, operation) {
+  if (operation.startsWith("rotate(")) {
+    const degrees = Number(operation.match(/-?\d+/)[0]);
+    return rotate(grid, degrees);
+  }
+
+  switch (operation) {
+    case "mirror-x":
+      return mirrorX(grid);
+    case "mirror-y":
+      return mirrorY(grid);
+    case "mirror-xy":
+      return mirrorXY(grid);
+    case "invert":
+      return invert(grid);
+    default:
+      return cloneGrid(grid);
+  }
+}
+
+function calculateTarget() {
+  let result = cloneGrid(inputGrid);
+
+  // IMPORTANT: transformations are applied sequentially,
+  // exactly in the order displayed to the player.
+  for (const operation of currentOperations) {
+    result = applyTransformation(result, operation);
+  }
+
+  return result;
+}
+
+function randomOperations() {
+  // 2–4 operations per round.
+  const count = 2 + Math.floor(Math.random() * 3);
+  const operations = [];
+
+  for (let i = 0; i < count; i++) {
+    operations.push(
+      TRANSFORMATIONS[Math.floor(Math.random() * TRANSFORMATIONS.length)]
+    );
+  }
+
+  return operations;
+}
+
+let currentOperations = [];
+
+function operationLabel(operation) {
+  return operation.replace("(", " (").replace(")", "°)");
+}
+
+function renderGrid(element, grid, editable) {
+  element.innerHTML = "";
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "cell" + (grid[r][c] ? " filled" : "");
+      cell.setAttribute("aria-label", `Row ${r + 1}, column ${c + 1}`);
+      cell.setAttribute("aria-pressed", String(grid[r][c]));
+
+      if (editable) {
+        cell.addEventListener("click", () => {
+          playerGrid[r][c] = !playerGrid[r][c];
+          renderGrid(rightGridEl, playerGrid, true);
+          checkAnswer();
+        });
+      } else {
+        cell.disabled = true;
+      }
+
+      element.appendChild(cell);
+    }
+  }
+}
+
+function renderOperations() {
+  operationListEl.innerHTML = "";
+
+  currentOperations.forEach((operation, index) => {
+    if (index > 0) {
+      const arrow = document.createElement("div");
+      arrow.className = "arrow";
+      arrow.textContent = "↓";
+      operationListEl.appendChild(arrow);
+    }
+
+    const item = document.createElement("div");
+    item.className = "operation";
+    item.textContent = operationLabel(operation);
+    operationListEl.appendChild(item);
+  });
+}
+
+function gridsEqual(a, b) {
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (a[r][c] !== b[r][c]) return false;
+    }
+  }
+  return true;
+}
+
+function checkAnswer() {
+  if (gridsEqual(playerGrid, targetGrid)) {
+    statusEl.textContent = "Correct! Press Next.";
+    statusEl.className = "status correct";
+    nextButton.classList.add("show");
+  } else {
+    statusEl.textContent = "Enter the transformed pattern.";
+    statusEl.className = "status";
+    nextButton.classList.remove("show");
+  }
+}
+
+function startRound() {
+  inputGrid = randomGrid();
+  playerGrid = emptyGrid();
+  currentOperations = randomOperations();
+  targetGrid = calculateTarget();
+
+  renderGrid(leftGridEl, inputGrid, false);
+  renderGrid(rightGridEl, playerGrid, true);
+  renderOperations();
+
+  statusEl.textContent = "Enter the transformed pattern.";
+  statusEl.className = "status";
+  nextButton.classList.remove("show");
+}
+
+function numpadToPosition(key) {
+  const map = {
+    "7": [0, 0], "8": [0, 1], "9": [0, 2],
+    "4": [1, 0], "5": [1, 1], "6": [1, 2],
+    "1": [2, 0], "2": [2, 1], "3": [2, 2]
+  };
+  return map[key] || null;
+}
+
+document.addEventListener("keydown", (event) => {
+  // Ignore keyboard input while typing into a possible future form field.
+  if (event.target.matches("input, textarea, select")) return;
+
+  const position = numpadToPosition(event.key);
+
+  if (!position) return;
+
+  event.preventDefault();
+
+  const [r, c] = position;
+  playerGrid[r][c] = !playerGrid[r][c];
+
+  renderGrid(rightGridEl, playerGrid, true);
+  checkAnswer();
+});
+
+nextButton.addEventListener("click", startRound);
+
+startRound();
+</script>
+</body>
+</html>
