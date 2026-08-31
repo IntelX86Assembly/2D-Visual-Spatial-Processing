@@ -91,8 +91,9 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(3, 1fr);
-    gap: 10px;
-    padding: 10px;
+    --cell-gap: clamp(5px, 1.1vw, 10px);
+    gap: var(--cell-gap);
+    padding: clamp(7px, 1vw, 10px);
     background: var(--panel);
     border: 1px solid var(--panel-border);
     border-radius: 18px;
@@ -237,6 +238,85 @@
     font-size: .72rem;
   }
 
+
+  .settings-button {
+    position: fixed;
+    top: 18px;
+    right: 20px;
+    z-index: 20;
+    border: 1px solid #303b4e;
+    border-radius: 10px;
+    padding: 9px 13px;
+    background: #161d2a;
+    color: #dce5f7;
+    font-size: .9rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 8px 25px rgba(0,0,0,.25);
+  }
+
+  .settings-button:hover {
+    border-color: #56637a;
+  }
+
+  .settings-panel {
+    position: fixed;
+    top: 62px;
+    right: 20px;
+    z-index: 19;
+    width: 250px;
+    padding: 17px;
+    background: #111722;
+    border: 1px solid #303b4e;
+    border-radius: 14px;
+    box-shadow: 0 18px 55px rgba(0,0,0,.45);
+    display: none;
+  }
+
+  .settings-panel.open {
+    display: block;
+    animation: pop .16s ease-out;
+  }
+
+  .settings-title {
+    margin-bottom: 14px;
+    font-size: .95rem;
+    font-weight: 900;
+  }
+
+  .setting {
+    margin-bottom: 14px;
+  }
+
+  .setting:last-child {
+    margin-bottom: 0;
+  }
+
+  .setting label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: .75rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .setting select {
+    width: 100%;
+    border: 1px solid #303b4e;
+    border-radius: 8px;
+    padding: 9px 10px;
+    background: #0d121b;
+    color: var(--text);
+    font: inherit;
+    outline: none;
+  }
+
+  .setting select:focus {
+    border-color: #56637a;
+  }
+
   @keyframes pop {
     from { opacity: 0; transform: scale(.9); }
     to { opacity: 1; transform: scale(1); }
@@ -276,10 +356,32 @@
 </head>
 
 <body>
+
+<button id="settingsButton" class="settings-button" aria-expanded="false" aria-controls="settingsPanel">⚙ Settings</button>
+
+<div id="settingsPanel" class="settings-panel" aria-label="Game settings">
+  <div class="settings-title">Game Settings</div>
+  <div class="setting">
+    <label for="actionCount">Transformation actions</label>
+    <select id="actionCount">
+      <option value="1">1 action</option>
+      <option value="2">2 actions</option>
+      <option value="3">3 actions</option>
+      <option value="4" selected>4 actions</option>
+      <option value="5">5 actions</option>
+      <option value="6">6 actions</option>
+      <option value="7">7 actions</option>
+      <option value="8">8 actions</option>
+      <option value="9">9 actions</option>
+      <option value="10">10 actions</option>
+    </select>
+  </div>
+</div>
+
 <div class="app">
   <header>
     <h1>Spatial Transformation</h1>
-    <div class="subtitle">Transform the blue grid, then reproduce the result in red.</div>
+    <div class="subtitle">Transform the blue grid, then reproduce the result in red. Use ⚙ Settings to change the number of transformation actions.</div>
   </header>
 
   <main class="game">
@@ -325,7 +427,7 @@
   true  = filled
 */
 
-const SIZE = 3;
+let SIZE = 3;
 
 const TRANSFORMATIONS = [
   "rotate(-270)",
@@ -345,6 +447,9 @@ const rightGridEl = document.getElementById("rightGrid");
 const operationListEl = document.getElementById("operationList");
 const nextButton = document.getElementById("nextButton");
 const statusEl = document.getElementById("status");
+const settingsButton = document.getElementById("settingsButton");
+const settingsPanel = document.getElementById("settingsPanel");
+const actionCountEl = document.getElementById("actionCount");
 
 let inputGrid = [];
 let playerGrid = [];
@@ -471,8 +576,8 @@ function calculateTarget() {
 }
 
 function randomOperations() {
-  // 2–4 operations per round.
-  const count = 2 + Math.floor(Math.random() * 3);
+  // The player selects exactly how many transformation actions appear.
+  const count = Number(actionCountEl.value);
   const operations = [];
 
   for (let i = 0; i < count; i++) {
@@ -570,6 +675,25 @@ function startRound() {
   nextButton.classList.remove("show");
 }
 
+
+settingsButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  const isOpen = settingsPanel.classList.toggle("open");
+  settingsButton.setAttribute("aria-expanded", String(isOpen));
+});
+
+settingsPanel.addEventListener("click", (event) => {
+  event.stopPropagation();
+});
+
+document.addEventListener("click", () => {
+  settingsPanel.classList.remove("open");
+  settingsButton.setAttribute("aria-expanded", "false");
+});
+actionCountEl.addEventListener("change", () => {
+  startRound();
+});
+
 function numpadToPosition(key) {
   const map = {
     "7": [0, 0], "8": [0, 1], "9": [0, 2],
@@ -597,6 +721,13 @@ document.addEventListener("keydown", (event) => {
 });
 
 nextButton.addEventListener("click", startRound);
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && nextButton.classList.contains("show")) {
+    event.preventDefault();
+    nextButton.click();
+  }
+});
 
 startRound();
 </script>
